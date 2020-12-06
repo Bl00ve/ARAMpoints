@@ -1,23 +1,43 @@
-import requests, time, pandas, json, datetime, pytz, urllib
+#TODO
+"""
+#Note for the future, to delete all previous git commits and start over - https://stackoverflow.com/questions/13716658/how-to-delete-all-commit-history-in-github
+
+- Add total games played for all players
+- Send output to CSV 
+- Add multi region support (Messi-JP)
+
+=====================
+Achievements to Add
+=====================
+Weekend 1
+----------
+Highest Average KDA
+Highest Average Deaths
+Highest Average Assists
+Most Penta Kills
+Most Wins
+Most kills in a single game
+Most CC points in a single game
+Most damage in a single game
+Win a game with >=10 deaths as Yasuo
+Win a game as Janna and count
+Lose a game as Teemo and count
+
+Weekend 2
+---------
+Played the same champion the most
+"""
+
+import requests, time, pandas, json, datetime, pytz, urllib, config, playerlist, csv
 from pandas.io.json import json_normalize
+from config import APIKEY
+from playerlist import lookuplist
 
 # Variables
 REGION = 'na1'
-APIKEY = ''
-if APIKEY == '':
-    print('Don\'t forget to insert your API key')
-tournamentstart = datetime.datetime(2020, 10, 7)
-tournamentend = datetime.datetime(2020, 10, 14)
-#searchSummoner = 'We Need a 5th'
-lookuplist = ['We Need a 5th', 'Bloodvault', 'Hottie2Naughty', 'Dul', 'Khaosix', 'Swagtasticles']
-
-# Testing Variables
-#accountId = "8l0Jlnj7CxKt3RFAsPp5ZePmwgp1EoD3hdrL1ruDEXqq7Q"
-#puuid = "zuCGa6S5b8PXYm3U73IXqEwtYF8L38hm_HUGPQqShcZFDDMIhg4URgegm-fmeOs3zVshSDywAJ5YcQ"
-#leagueid = "wCwoTAi3g4eQOLMLCWXRbuHoyGlumOlW3SngCdHrhUs_yks"
-#gameId = '3565806531'
-
-
+windowstart = datetime.datetime(2020, 12, 5)
+windowend = datetime.datetime(2020, 12, 6)
+apirequest = 0
 
 # Classes
 class Summoner:
@@ -31,12 +51,16 @@ class Summoner:
             self.getname(name)
 
     def getaccountid(self, name):
+        global apirequest
         URL = 'https://' + REGION + '.api.riotgames.com/lol/summoner/v4/summoners/by-name/' + name + '?api_key=' + APIKEY
+        apirequest += 1
         response = requests.get(URL)
         self.accountid = response.json()['accountId']
 
     def getname(self, accountid):
+        global apirequest
         URL = 'https://'+ REGION +'.api.riotgames.com/lol/summoner/v4/summoners/by-accountid/' + accountid + '?api_key=' + APIKEY
+        apirequest += 1
         response = requests.get(URL)
         self.name = response.json()['name']
 
@@ -50,9 +74,9 @@ class Match:
         self.getarams(Summoner)
   
     def getmatchhistory(self, accountid):
-        time.sleep(120)
+        global apirequest
         URL = 'https://' + REGION + '.api.riotgames.com/lol/match/v4/matchlists/by-account/' + accountid + '?api_key=' + APIKEY
-        #response = requests.get(URL)
+        apirequest += 1
         response = urllib.request.urlopen(URL).read()
         self.matchhistory = json.loads(response)
     
@@ -62,7 +86,7 @@ class Match:
         for match in self.matchhistory['matches']:
             if (match['queue'] == 450) or (match['queue'] == 931) or (match['queue'] == 452) or (match['queue'] == 451) or (match['queue'] == 62) or (match['queue'] == 63) or (match['queue'] == 64) or (match['queue'] == 65) or (match['queue'] == 930):
                 match['timestamp'] = Match.getmatchdate(match['timestamp'])
-                if tournamentend >= match['timestamp'] >= tournamentstart:
+                if windowend >= match['timestamp'] >= windowstart:
                     aram_match[i] = match
                     i += 1
                 else:
@@ -71,66 +95,48 @@ class Match:
                 pass
         self.arams = aram_match
 
+    @staticmethod
     def getmatchdate(ts):
         pacific = datetime.timedelta(hours=8)
-        #return (datetime.datetime.utcfromtimestamp(ts/1000) - pacific).strftime('%Y-%m-%d %H:%M:%S')
         return (datetime.datetime.utcfromtimestamp(ts/1000) - pacific)
 
+    @staticmethod
     def getarammatchinfo(match):
+        global apirequest
         URL = 'https://' + REGION + '.api.riotgames.com/lol/match/v4/matches/' + str(match) + '?api_key=' + APIKEY
-        #response = requests.get(URL)
+        apirequest += 1
         response = urllib.request.urlopen(URL).read()
         matchinfo = json.loads(response)
         matchinfo['gameCreation'] = Match.getmatchdate(matchinfo['gameCreation'])
         matchinfo['gameDuration'] = str(datetime.timedelta(seconds=(matchinfo['gameDuration'])))
         for participant in matchinfo['participantIdentities']:
             if participant['player']['summonerName'].casefold() == searchSummoner.casefold():
-                #if tournamentend > matchinfo['gameCreation'] > tournamentstart:
                 for players in matchinfo['participants']:
                     if players['participantId'] == participant['participantId']:
                         matchid = matchinfo['gameId']
                         points[matchid] = {}
-                        #print(matchinfo['gameId'], matchinfo['platformId'], matchinfo['gameMode'], matchinfo['gameType'], matchinfo['gameCreation'], matchinfo['gameDuration'])
-                        #print('SummonerName - ' + participant['player']['summonerName'])
                         points[matchid]['SummonerName'] = str(participant['player']['summonerName'])
-                        #print('Match Date - ' + str(matchinfo['gameCreation']))
-                        #print('Game Duration - '  + str(matchinfo['gameDuration']))
                         points[matchid]['GameDuration'] = str(matchinfo['gameDuration'])
-                        #print('Champ Played ' + str(Match.getchampid(players['championId'])))
                         points[matchid]['Champ'] = str(Match.getchampid(players['championId']))
-                        #print('Kills ' + str(players['stats']['kills']))
                         points[matchid]['Kills'] = str(players['stats']['kills'])
-                        #print('Deaths ' + str(players['stats']['deaths']))
                         points[matchid]['Deaths'] = str(players['stats']['deaths'])
-                        #print('Assists ' + str(players['stats']['assists']))
                         points[matchid]['Assists'] = str(players['stats']['assists'])
-                        #print('Largest Killing Spree ' + str(players['stats']['largestKillingSpree']))
                         points[matchid]['LargestKillingSpree'] = str(players['stats']['largestKillingSpree'])
-                        #print('Largest Multi Kill ' + str(players['stats']['largestMultiKill']))
                         points[matchid]['LargestMultiKill'] = str(players['stats']['largestMultiKill'])
-                        #print('Killing Sprees ' + str(players['stats']['killingSprees']))
                         points[matchid]['KillingSprees'] = str(players['stats']['killingSprees'])
-                        #print('Longest Time Spent Living ' + str(datetime.timedelta(seconds=players['stats']['longestTimeSpentLiving'])))
                         points[matchid]['LongestLife'] = str(datetime.timedelta(seconds=players['stats']['longestTimeSpentLiving']))
-                        #print('Double Kills ' + str(players['stats']['doubleKills']))
                         points[matchid]['DoubleKills'] = str(players['stats']['doubleKills'])
-                        #print('Triple Kills ' + str(players['stats']['tripleKills']))
                         points[matchid]['TripleKills'] = str(players['stats']['tripleKills'])
-                        #print('Quadra Kills ' + str(players['stats']['quadraKills']))
                         points[matchid]['QuadKills'] = str(players['stats']['quadraKills'])
-                        #print('Penta Kills ' + str(players['stats']['pentaKills']))
                         points[matchid]['PentaKills'] = str(players['stats']['pentaKills'])
-                        #print('Total Damage Dealt '+ str(players['stats']['totalDamageDealtToChampions']))
                         points[matchid]['DamageDealt'] = str(players['stats']['totalDamageDealtToChampions'])
-                        #print('Total CC Dealt ' + str(players['stats']['totalTimeCrowdControlDealt']))
                         points[matchid]['CC'] = str(players['stats']['totalTimeCrowdControlDealt'])
-                        #print('Got First Blood ' + str(players['stats']['firstBloodKill']))
                         points[matchid]['FirstBlood'] = str(players['stats']['firstBloodKill'])
-                        #print('')
                         return points
             else:
                 pass
 
+    @staticmethod
     def getchampid(champid):
         for key, value in champdict.items():
             if str(champid) == value:
@@ -155,20 +161,46 @@ def getchampdict():
 def main():
     global points
     global searchSummoner
+    global apirequest
     getchampdict()
-    print('Data is taken from ' + str(tournamentstart) + ' to ' +str(tournamentend))
+    print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d')) + ' to ' +str(windowend.strftime('%Y-%m-%d')))
+    # Start output file
+    file = open('testoutput.csv', 'w', newline = '')
+    with file:
+        header = [
+                    'Summoner', 
+                    'Games Played', 
+                    'Total Kills',
+                    'Total Deaths',
+                    'Total Assists',
+                    'Average Kills',
+                    'Average Deaths',
+                    'Average Assists',
+                    'Total KDA',
+                    'Double Kills',
+                    'Triple Kills',
+                    'Quadra Kills',
+                    'Penta Kills',
+                    'First Bloods',
+                    'Total CC Score',
+                    'Average CC Score',
+                    'Total Damage Dealt',
+                    'Average Damage Dealt',
+                    'Total Killing Sprees',
+                ]
+        writer = csv.DictWriter(file, fieldnames = header)
+
+        writer.writeheader()
+    file.close()
     for searchSummoner in lookuplist:
         points = {}
         a_summoner = Summoner(searchSummoner)
         arams = Match(a_summoner).arams
-    #    print(arams)
-        #Match(a_summoner).matchhistory['matches']
-        #print(getarams(a_summoner))
-    #    print(Match(a_summoner).arams)
-    #    print(arams[0])
         for match in arams.items():
             Match.getarammatchinfo(match[1]['gameId'])
-        #print(points)
+            if apirequest > 60:
+                time.sleep(120)
+                apirequest = 0
         if bool(points) == True:
             killpoints = 0
             deathpoints = 0
@@ -178,6 +210,10 @@ def main():
             quadrakills = 0
             pentakills = 0
             firstblood = 0
+            ccscore = 0
+            damagedealt = 0
+            killingsprees = 0
+            #lifetime = datetime.datetime('0:0:0','%H:%M:%S')
             for match in points:
                 killpoints += int(points[match]['Kills'])
                 deathpoints += int(points[match]['Deaths'])
@@ -185,64 +221,100 @@ def main():
                 if int(points[match]['DoubleKills']) > 0:
                     doublekills += int(points[match]['DoubleKills'])
                 if int(points[match]['TripleKills']) > 0:
-                    triplekills += int(points[match]['DoubleKills'])
+                    triplekills += int(points[match]['TripleKills'])
                 if int(points[match]['QuadKills']) > 0:
-                    quadrakills += int(points[match]['DoubleKills'])
+                    quadrakills += int(points[match]['QuadKills'])
                 if int(points[match]['PentaKills']) > 0:
-                    pentakills += int(points[match]['DoubleKills'])
+                    pentakills += int(points[match]['PentaKills'])
                 if points[match]['FirstBlood'] == True:
                     firstblood += 1
+                if int(points[match]['CC']) > 0:
+                    ccscore += int(points[match]['CC'])
+                if int(points[match]['DamageDealt']) > 0:
+                    damagedealt += int(points[match]['DamageDealt'])
+                if int(points[match]['KillingSprees']) > 0:
+                    killingsprees += int(points[match]['KillingSprees'])
+                #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
+                #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
+            file = open('testoutput.csv', 'a+', newline = '')
+            with file:
+                writer = csv.DictWriter(file, fieldnames = header)
+                writer.writerow({
+                                    'Summoner' : searchSummoner,
+                                    'Games Played' : str(len(points)),
+                                    'Total Kills' : str(killpoints),
+                                    'Total Deaths' : str(deathpoints),
+                                    'Total Assists' : str(assistpoints),
+                                    'Average Kills' : str(round(killpoints/len(points),2)),
+                                    'Average Deaths' : str(round(deathpoints/len(points),2)),
+                                    'Average Assists' : str(round(assistpoints/len(points),2)),
+                                    'Total KDA' : str(round(((killpoints + assistpoints) / deathpoints),2)),
+                                    'Double Kills' : str(doublekills),
+                                    'Triple Kills' : str(triplekills),
+                                    'Quadra Kills' : str(quadrakills),
+                                    'Penta Kills' : str(pentakills),
+                                    'First Bloods' : str(firstblood),
+                                    'Total CC Score' : str(ccscore),
+                                    'Average CC Score' : str(round(ccscore/len(points),2)),
+                                    'Total Damage Dealt' : str(damagedealt),
+                                    'Average Damage Dealt' :  str(round(damagedealt/len(points),2)),
+                                    'Total Killing Sprees' : str(killingsprees),
+                                 })
+
             print(points[match]['SummonerName'])
-            print('Number of Games - ' + str(len(points)))
-            print('Total Kills - ' + str(killpoints))
-            print('Total Deaths - ' + str(deathpoints))
-            print('Total Assists - ' + str(assistpoints))
-            print('Total KDA - ' + str(round(((killpoints + assistpoints) / deathpoints),2)))
-            print('Number of Double Kills - ' + str(doublekills))
-            print('Number of Triple Kills - ' + str(triplekills))
-            print('Number of Quadra Kills - ' + str(quadrakills))
-            print('Number of Penta Kills - ' + str(pentakills))
-            print('Number of First Bloods - ' + str(firstblood))
+            print('[*] Number of Games - ' + str(len(points)))
+            print('[*] Total Kills - ' + str(killpoints))
+            print('[*] Total Deaths - ' + str(deathpoints))
+            print('[*] Total Assists - ' + str(assistpoints))
+            print('[*] Average Kills - ' + str(round(killpoints/len(points),2)))
+            print('[*] Average Deaths - ' + str(round(deathpoints/len(points),2)))
+            print('[*] Average Assists - ' + str(round(assistpoints/len(points),2)))
+            print('[*] Total KDA - ' + str(round(((killpoints + assistpoints) / deathpoints),2)))
+            print('[*] Number of Double Kills - ' + str(doublekills))
+            print('[*] Number of Triple Kills - ' + str(triplekills))
+            print('[*] Number of Quadra Kills - ' + str(quadrakills))
+            print('[*] Number of Penta Kills - ' + str(pentakills))
+            print('[*] Number of First Bloods - ' + str(firstblood))
+            #print('Time Spent Alive - ' + str(lifetime))
+            #print('Average Life Span - ' + )
+            #print('Average Time Spent Alive - ' + str(round(lifetime/len(points),2)))
+            print('[*] Total CC Score - ' + str(ccscore))
+            print('[*] Average CC Score - ' + str(round(ccscore/len(points),2)))
+            print('[*] Total Damage Dealt - ' + str(damagedealt))
+            print('[*] Average Damage Dealt - ' +  str(round(damagedealt/len(points),2)))
+            print('[*] Total Killing Sprees - ' + str(killingsprees))
+            print('[*] Total First Bloods - ' + str(firstblood))
             print('')
         #    getmatchinfo(arams[0]['gameId'])
         else:
-            print(searchSummoner + ' hasn\'t played any ARAM games in this time period')
+            file = open('testoutput.csv', 'a+', newline = '')
+            with file:
+                writer = csv.DictWriter(file, fieldnames = header)
+                writer.writerow({
+                                    'Summoner' : searchSummoner,
+                                    'Games Played' : 'N/A',
+                                    'Total Kills' : 'N/A',
+                                    'Total Deaths' : 'N/A',
+                                    'Total Assists' : 'N/A',
+                                    'Average Kills' : 'N/A',
+                                    'Average Deaths' : 'N/A',
+                                    'Average Assists' : 'N/A',
+                                    'Total KDA' : 'N/A',
+                                    'Double Kills' : 'N/A',
+                                    'Triple Kills' : 'N/A',
+                                    'Quadra Kills' : 'N/A',
+                                    'Penta Kills' : 'N/A',
+                                    'First Bloods' : 'N/A',
+                                    'Total CC Score' : 'N/A',
+                                    'Average CC Score' : 'N/A',
+                                    'Total Damage Dealt' : 'N/A',
+                                    'Average Damage Dealt' :  'N/A',
+                                    'Total Killing Sprees' : 'N/A',
+                                 })
+            print('[!] ' + searchSummoner + ' hasn\'t played any ARAM games in this time period')
             print('')
-"""
-Notable Stats
---------------
-matchinfo['participants'][X]['stats'][<see below>]
-    kills(int)
-    deaths(int)
-    assists(int)
-    largetsKillingSpree(int)
-    largestMultiKill(int)
-    killingSprees(int)
-    longestTimeSpentLiving(int)
-    doubleKills(int)
-    tripleKills(int)
-    quadraKills(int)
-    pentaKills(int)
-    totalDamageDealtToChampions(int)
-    totalTimeCrowdControlDealt(int)
-    firstBloodKill(bool)
-
-wins???
-
-matchinfo['participantIdentities'][X]['participantId']
-matchinfo['participantIdentities'][X]['player']['SummonerName']
-
-FAQ
-Q - Do I need a team?
-A - Single person entry
-
-Q - Do custom games count?
-A - No
-
-Q - How many games count?
-A - I can only track up to 99 games, if you play more than that you should go outside
-"""
-
+    file.close()
+    
 
 if __name__ == '__main__':
     main()

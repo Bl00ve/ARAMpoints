@@ -3,3 +3,4 @@ config.py
 __pycache__
 .ipynb_checkpoints
 playerlist.py
+testoutput.csv
