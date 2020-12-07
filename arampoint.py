@@ -5,27 +5,28 @@
 - Add total games played for all players
 - Send output to CSV 
 - Add multi region support (Messi-JP)
+- Check Royal Flush games (fixed)
 
 =====================
 Achievements to Add
 =====================
-Weekend 1
+Overall
 ----------
 + Highest Average KDA
 + Highest Average Deaths
 + Highest Average Assists
 + Most Penta Kills
-Most Wins
++ Most Wins
 Most kills in a single game
 Most CC points in a single game
 Most damage in a single game
-Lose a game as Teemo and count
     
     Special Achievements
     --------------------
-    Achievement 1 - Win a game with >=10 deaths as Yasuo
-    Achievement 2 - Win a game as Janna and count
-    Achievement 3 - Lose a game as Teemo and count
+    + Achievement 1 - Win a game with >=10 deaths as Yasuo (highest deaths in a single game wins)
+    + Achievement 2 - Win the most games as Janna and count
+    + Achievement 3 - Lose the most games as Teemo and count
+    + Achievement 4 - Get the most pentakills as Samira
 
 Weekend 2
 ---------
@@ -39,8 +40,8 @@ from playerlist import lookuplist
 
 # Variables
 REGION = 'na1'
-windowstart = datetime.datetime(2020, 12, 5)
-windowend = datetime.datetime(2020, 12, 6)
+windowstart = datetime.datetime(2020, 12, 5, 0, 0)
+windowend = datetime.datetime(2020, 12, 6, 23, 59)
 apirequest = 0
 
 # Classes
@@ -90,9 +91,12 @@ class Match:
         for match in self.matchhistory['matches']:
             if (match['queue'] == 450) or (match['queue'] == 931) or (match['queue'] == 452) or (match['queue'] == 451) or (match['queue'] == 62) or (match['queue'] == 63) or (match['queue'] == 64) or (match['queue'] == 65) or (match['queue'] == 930):
                 match['timestamp'] = Match.getmatchdate(match['timestamp'])
-                if windowend >= match['timestamp'] >= windowstart:
-                    aram_match[i] = match
-                    i += 1
+                if match['timestamp'] >= windowstart:
+                    if match['timestamp'] <= windowend:
+                        aram_match[i] = match
+                        i += 1
+                    else:
+                        pass
                 else:
                     pass
             else:
@@ -138,7 +142,13 @@ class Match:
                         points[matchid]['FirstBlood'] = str(players['stats']['firstBloodKill'])
                         points[matchid]['Win'] = str(players['stats']['win'])
                         if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Yasuo' and points[matchid]['Deaths'] >= 10:
-                            points[matchid['Achievement1'] = 1
+                            points[matchid]['Achievement1'] = points[matchid]['Deaths']
+                        if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Janna':
+                            points[matchid]['Achievement2'] = 1
+                        if points[matchid]['Win'] == 'False' and points[matchid]['Champ'] == 'Teemo':
+                            points[matchid]['Achievement3'] = 1
+                        if points[matchid]['Champ'] == 'Samira' and int(points[matchid]['PentaKills']) > 0:
+                            points[matchid]['Achievement4'] = int(points[matchid]['PentaKills'])
                         return points
             else:
                 pass
@@ -171,7 +181,7 @@ def main():
     global apirequest
     getchampdict()
     snowdowngames = 0
-    print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d')) + ' to ' +str(windowend.strftime('%Y-%m-%d')))
+    print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d %H:%m')) + ' to ' +str(windowend.strftime('%Y-%m-%d %H:%m')))
     # Start output file
     file = open('weekend1.csv', 'w', newline = '')
     with file:
@@ -196,7 +206,12 @@ def main():
                     'Average Damage Dealt',
                     'Total Killing Sprees',
                     'Total Average KDA',
-                    'Wins'
+                    'Wins',
+                    'Win Average',
+                    'Achievement 1',
+                    'Achievement 2',
+                    'Achievement 3',
+                    'Achievement 4'
                 ]
         writer = csv.DictWriter(file, fieldnames = header)
 
@@ -210,7 +225,7 @@ def main():
         for match in arams.items():
             Match.getarammatchinfo(match[1]['gameId'])
             if apirequest > 60:
-                for remaining in range(130, 0, -1):
+                for remaining in range(160, 0, -1):
                     sys.stdout.write('\r')
                     sys.stdout.write('Waiting {:2d} seconds to continue'.format(remaining))
                     sys.stdout.flush()
@@ -233,6 +248,10 @@ def main():
             damagedealt = 0
             killingsprees = 0
             wins = 0
+            ach1 = 0
+            ach2 = 0
+            ach3 = 0
+            ach4 = 0
             #lifetime = datetime.datetime('0:0:0','%H:%M:%S')
             for match in points:
                 killpoints += int(points[match]['Kills'])
@@ -256,6 +275,14 @@ def main():
                     killingsprees += int(points[match]['KillingSprees'])
                 if points[match]['Win'] == 'True':
                     wins += 1
+                if 'Achievement1' in points[match] and points[match]['Achievement1'] >= ach1:
+                    ach1 = points[match]['Achievement1']
+                if 'Achievement2' in points[match] and points[match]['Achievement2'] > 0:
+                    ach2 += 1
+                if 'Achievement3' in points[match] and points[match]['Achievement3'] > 0:
+                    ach3 += 1
+                if 'Achievement4' in points[match] and points[match]['Achievement4'] > 0:
+                    ach4 += 1
                 #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
                 #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
             file = open('weekend1.csv', 'a+', newline = '')
@@ -281,37 +308,18 @@ def main():
                                     'Total Damage Dealt' : str(damagedealt),
                                     'Average Damage Dealt' :  str(round(damagedealt/len(points),0)),
                                     'Total Killing Sprees' : str(killingsprees),
-                                    'Total Average KDA' : str(round((round(killpoints/len(points),0)) + (round(assistpoints/len(points),0)) / (round(deathpoints/len(points),0))),0),
+                                    'Total Average KDA' : str(round((round(killpoints/len(points),0)) + (round(assistpoints/len(points),0)) / (round(deathpoints/len(points),0)))),
                                     'Wins' : str(wins),
-                                    'Win Average' : str(round(wins/len(points),2))
+                                    'Win Average' : str(round(wins/len(points),2)),
+                                    'Achievement 1' : str(ach1),
+                                    'Achievement 2' : str(ach2),
+                                    'Achievement 3' : str(ach3),
+                                    'Achievement 4' : str(ach4)
                                  })
             # Text output in terminal
             print('[+] Getting data for ' + points[match]['SummonerName'])
             snowdowngames += len(points) 
-            # print('[*] Number of Games - ' + str(len(points)))
-            # print('[*] Total Kills - ' + str(killpoints))
-            # print('[*] Total Deaths - ' + str(deathpoints))
-            # print('[*] Total Assists - ' + str(assistpoints))
-            # print('[*] Average Kills - ' + str(round(killpoints/len(points),2)))
-            # print('[*] Average Deaths - ' + str(round(deathpoints/len(points),2)))
-            # print('[*] Average Assists - ' + str(round(assistpoints/len(points),2)))
-            # print('[*] Total KDA - ' + str(round(((killpoints + assistpoints) / deathpoints),2)))
-            # print('[*] Number of Double Kills - ' + str(doublekills))
-            # print('[*] Number of Triple Kills - ' + str(triplekills))
-            # print('[*] Number of Quadra Kills - ' + str(quadrakills))
-            # print('[*] Number of Penta Kills - ' + str(pentakills))
-            # print('[*] Number of First Bloods - ' + str(firstblood))
-            # print('Time Spent Alive - ' + str(lifetime))
-            # print('Average Life Span - ' + )
-            # print('Average Time Spent Alive - ' + str(round(lifetime/len(points),2)))
-            # print('[*] Total CC Score - ' + str(ccscore))
-            # print('[*] Average CC Score - ' + str(round(ccscore/len(points),2)))
-            # print('[*] Total Damage Dealt - ' + str(damagedealt))
-            # print('[*] Average Damage Dealt - ' +  str(round(damagedealt/len(points),2)))
-            # print('[*] Total Killing Sprees - ' + str(killingsprees))
-            # print('[*] Total First Bloods - ' + str(firstblood))
-            # print('')
-        #    getmatchinfo(arams[0]['gameId'])
+
         else:
             file = open('weekend1.csv', 'a+', newline = '')
             with file:
@@ -337,8 +345,12 @@ def main():
                                     'Average Damage Dealt' :  'N/A',
                                     'Total Killing Sprees' : 'N/A',
                                     'Total Average KDA' : 'N/A',
-                                    'Wins' : 'N/A'
-                                    'Win Average' : 'N/A'
+                                    'Wins' : 'N/A',
+                                    'Win Average' : 'N/A',
+                                    'Achievement 1' : 'N/A',
+                                    'Achievement 2' : 'N/A',
+                                    'Achievement 3' : 'N/A',
+                                    'Achievement 4' : 'N/A'
                                  })
             print('[!] ' + searchSummoner + ' hasn\'t played any ARAM games in this time period')
             #print('')
