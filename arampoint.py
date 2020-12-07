@@ -5,7 +5,9 @@
 - Add total games played for all players
 - Send output to CSV 
 - Add multi region support (Messi-JP)
-- Check Royal Flush games (fixed)
+    - Used playerlist_jp.py to fix this, just run the script again and change playerlist entries to _jp
+
+
 
 =====================
 Achievements to Add
@@ -33,13 +35,21 @@ Weekend 2
 Played the same champion the most
 """
 
-import requests, time, pandas, json, datetime, pytz, urllib, config, playerlist, csv, sys
+import requests, time, pandas, json, datetime, pytz, urllib, config, csv, sys
 from pandas.io.json import json_normalize
 from config import APIKEY
+
+# Multi Region Support
+import playerlist
+#import playerlist_jp
 from playerlist import lookuplist
+#from playerlist_jp import lookuplist
+
+
 
 # Variables
 REGION = 'na1'
+#REGION = 'JP1'
 windowstart = datetime.datetime(2020, 12, 5, 0, 0)
 windowend = datetime.datetime(2020, 12, 6, 23, 59)
 apirequest = 0
@@ -183,7 +193,7 @@ def main():
     snowdowngames = 0
     print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d %H:%m')) + ' to ' +str(windowend.strftime('%Y-%m-%d %H:%m')))
     # Start output file
-    file = open('weekend1.csv', 'w', newline = '')
+    file = open('PLACEHOLDER.csv', 'w', newline = '')
     with file:
         header = [
                     'Summoner',
@@ -206,6 +216,9 @@ def main():
                     'Average Damage Dealt',
                     'Total Killing Sprees',
                     'Total Average KDA',
+                    'Highest Kills',
+                    'Highest Damage',
+                    'Highest CC',
                     'Wins',
                     'Win Average',
                     'Achievement 1',
@@ -222,6 +235,9 @@ def main():
         points = {}
         a_summoner = Summoner(searchSummoner)
         arams = Match(a_summoner).arams
+        highkills = 0
+        highdamage = 0
+        highcc = 0
         for match in arams.items():
             Match.getarammatchinfo(match[1]['gameId'])
             if apirequest > 60:
@@ -275,6 +291,12 @@ def main():
                     killingsprees += int(points[match]['KillingSprees'])
                 if points[match]['Win'] == 'True':
                     wins += 1
+                if int(points[match]['Kills']) > int(highkills):
+                    highkills = points[match]['Kills']
+                if int(points[match]['DamageDealt']) > int(highdamage):
+                    highdamage = points[match]['DamageDealt']
+                if int(points[match]['CC']) > int(highcc):
+                    highcc = points[match]['CC']
                 if 'Achievement1' in points[match] and points[match]['Achievement1'] >= ach1:
                     ach1 = points[match]['Achievement1']
                 if 'Achievement2' in points[match] and points[match]['Achievement2'] > 0:
@@ -285,7 +307,7 @@ def main():
                     ach4 += 1
                 #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
                 #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
-            file = open('weekend1.csv', 'a+', newline = '')
+            file = open('PLACEHOLDER.csv', 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
@@ -309,6 +331,9 @@ def main():
                                     'Average Damage Dealt' :  str(round(damagedealt/len(points),0)),
                                     'Total Killing Sprees' : str(killingsprees),
                                     'Total Average KDA' : str(round((round(killpoints/len(points),0)) + (round(assistpoints/len(points),0)) / (round(deathpoints/len(points),0)))),
+                                    'Highest Kills' : str(highkills),
+                                    'Highest Damage' : str(highdamage),
+                                    'Highest CC' : str(highcc),
                                     'Wins' : str(wins),
                                     'Win Average' : str(round(wins/len(points),2)),
                                     'Achievement 1' : str(ach1),
@@ -321,7 +346,7 @@ def main():
             snowdowngames += len(points) 
 
         else:
-            file = open('weekend1.csv', 'a+', newline = '')
+            file = open('PLACEHOLDER.csv', 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
@@ -346,6 +371,9 @@ def main():
                                     'Total Killing Sprees' : 'N/A',
                                     'Total Average KDA' : 'N/A',
                                     'Wins' : 'N/A',
+                                    'Highest Kills' : 'N/A',
+                                    'Highest Damage' : 'N/A',
+                                    'Highest CC' : 'N/A',
                                     'Win Average' : 'N/A',
                                     'Achievement 1' : 'N/A',
                                     'Achievement 2' : 'N/A',
