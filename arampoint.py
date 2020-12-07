@@ -11,24 +11,28 @@ Achievements to Add
 =====================
 Weekend 1
 ----------
-Highest Average KDA
-Highest Average Deaths
-Highest Average Assists
-Most Penta Kills
++ Highest Average KDA
++ Highest Average Deaths
++ Highest Average Assists
++ Most Penta Kills
 Most Wins
 Most kills in a single game
 Most CC points in a single game
 Most damage in a single game
-Win a game with >=10 deaths as Yasuo
-Win a game as Janna and count
 Lose a game as Teemo and count
+    
+    Special Achievements
+    --------------------
+    Achievement 1 - Win a game with >=10 deaths as Yasuo
+    Achievement 2 - Win a game as Janna and count
+    Achievement 3 - Lose a game as Teemo and count
 
 Weekend 2
 ---------
 Played the same champion the most
 """
 
-import requests, time, pandas, json, datetime, pytz, urllib, config, playerlist, csv
+import requests, time, pandas, json, datetime, pytz, urllib, config, playerlist, csv, sys
 from pandas.io.json import json_normalize
 from config import APIKEY
 from playerlist import lookuplist
@@ -132,6 +136,9 @@ class Match:
                         points[matchid]['DamageDealt'] = str(players['stats']['totalDamageDealtToChampions'])
                         points[matchid]['CC'] = str(players['stats']['totalTimeCrowdControlDealt'])
                         points[matchid]['FirstBlood'] = str(players['stats']['firstBloodKill'])
+                        points[matchid]['Win'] = str(players['stats']['win'])
+                        if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Yasuo' and points[matchid]['Deaths'] >= 10:
+                            points[matchid['Achievement1'] = 1
                         return points
             else:
                 pass
@@ -163,13 +170,14 @@ def main():
     global searchSummoner
     global apirequest
     getchampdict()
+    snowdowngames = 0
     print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d')) + ' to ' +str(windowend.strftime('%Y-%m-%d')))
     # Start output file
-    file = open('testoutput.csv', 'w', newline = '')
+    file = open('weekend1.csv', 'w', newline = '')
     with file:
         header = [
-                    'Summoner', 
-                    'Games Played', 
+                    'Summoner',
+                    'Games Played',
                     'Total Kills',
                     'Total Deaths',
                     'Total Assists',
@@ -187,11 +195,14 @@ def main():
                     'Total Damage Dealt',
                     'Average Damage Dealt',
                     'Total Killing Sprees',
+                    'Total Average KDA',
+                    'Wins'
                 ]
         writer = csv.DictWriter(file, fieldnames = header)
 
         writer.writeheader()
     file.close()
+    apiwait = 0
     for searchSummoner in lookuplist:
         points = {}
         a_summoner = Summoner(searchSummoner)
@@ -199,8 +210,16 @@ def main():
         for match in arams.items():
             Match.getarammatchinfo(match[1]['gameId'])
             if apirequest > 60:
-                time.sleep(120)
+                for remaining in range(130, 0, -1):
+                    sys.stdout.write('\r')
+                    sys.stdout.write('Waiting {:2d} seconds to continue'.format(remaining))
+                    sys.stdout.flush()
+                    time.sleep(1)
+                apiwait += 1
+                sys.stdout.write('\r[*] API wait #' + str(apiwait) + ' has finished   \n')
                 apirequest = 0
+                # time.sleep(120)
+                # apirequest = 0
         if bool(points) == True:
             killpoints = 0
             deathpoints = 0
@@ -213,6 +232,7 @@ def main():
             ccscore = 0
             damagedealt = 0
             killingsprees = 0
+            wins = 0
             #lifetime = datetime.datetime('0:0:0','%H:%M:%S')
             for match in points:
                 killpoints += int(points[match]['Kills'])
@@ -226,7 +246,7 @@ def main():
                     quadrakills += int(points[match]['QuadKills'])
                 if int(points[match]['PentaKills']) > 0:
                     pentakills += int(points[match]['PentaKills'])
-                if points[match]['FirstBlood'] == True:
+                if points[match]['FirstBlood'] == 'True':
                     firstblood += 1
                 if int(points[match]['CC']) > 0:
                     ccscore += int(points[match]['CC'])
@@ -234,9 +254,11 @@ def main():
                     damagedealt += int(points[match]['DamageDealt'])
                 if int(points[match]['KillingSprees']) > 0:
                     killingsprees += int(points[match]['KillingSprees'])
+                if points[match]['Win'] == 'True':
+                    wins += 1
                 #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
                 #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
-            file = open('testoutput.csv', 'a+', newline = '')
+            file = open('weekend1.csv', 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
@@ -245,49 +267,53 @@ def main():
                                     'Total Kills' : str(killpoints),
                                     'Total Deaths' : str(deathpoints),
                                     'Total Assists' : str(assistpoints),
-                                    'Average Kills' : str(round(killpoints/len(points),2)),
-                                    'Average Deaths' : str(round(deathpoints/len(points),2)),
-                                    'Average Assists' : str(round(assistpoints/len(points),2)),
-                                    'Total KDA' : str(round(((killpoints + assistpoints) / deathpoints),2)),
+                                    'Average Kills' : str(round(killpoints/len(points),0)),
+                                    'Average Deaths' : str(round(deathpoints/len(points),0)),
+                                    'Average Assists' : str(round(assistpoints/len(points),0)),
+                                    'Total KDA' : str(round(((killpoints + assistpoints) / deathpoints),0)),
                                     'Double Kills' : str(doublekills),
                                     'Triple Kills' : str(triplekills),
                                     'Quadra Kills' : str(quadrakills),
                                     'Penta Kills' : str(pentakills),
                                     'First Bloods' : str(firstblood),
                                     'Total CC Score' : str(ccscore),
-                                    'Average CC Score' : str(round(ccscore/len(points),2)),
+                                    'Average CC Score' : str(round(ccscore/len(points),0)),
                                     'Total Damage Dealt' : str(damagedealt),
-                                    'Average Damage Dealt' :  str(round(damagedealt/len(points),2)),
+                                    'Average Damage Dealt' :  str(round(damagedealt/len(points),0)),
                                     'Total Killing Sprees' : str(killingsprees),
+                                    'Total Average KDA' : str(round((round(killpoints/len(points),0)) + (round(assistpoints/len(points),0)) / (round(deathpoints/len(points),0))),0),
+                                    'Wins' : str(wins),
+                                    'Win Average' : str(round(wins/len(points),2))
                                  })
-
-            print(points[match]['SummonerName'])
-            print('[*] Number of Games - ' + str(len(points)))
-            print('[*] Total Kills - ' + str(killpoints))
-            print('[*] Total Deaths - ' + str(deathpoints))
-            print('[*] Total Assists - ' + str(assistpoints))
-            print('[*] Average Kills - ' + str(round(killpoints/len(points),2)))
-            print('[*] Average Deaths - ' + str(round(deathpoints/len(points),2)))
-            print('[*] Average Assists - ' + str(round(assistpoints/len(points),2)))
-            print('[*] Total KDA - ' + str(round(((killpoints + assistpoints) / deathpoints),2)))
-            print('[*] Number of Double Kills - ' + str(doublekills))
-            print('[*] Number of Triple Kills - ' + str(triplekills))
-            print('[*] Number of Quadra Kills - ' + str(quadrakills))
-            print('[*] Number of Penta Kills - ' + str(pentakills))
-            print('[*] Number of First Bloods - ' + str(firstblood))
-            #print('Time Spent Alive - ' + str(lifetime))
-            #print('Average Life Span - ' + )
-            #print('Average Time Spent Alive - ' + str(round(lifetime/len(points),2)))
-            print('[*] Total CC Score - ' + str(ccscore))
-            print('[*] Average CC Score - ' + str(round(ccscore/len(points),2)))
-            print('[*] Total Damage Dealt - ' + str(damagedealt))
-            print('[*] Average Damage Dealt - ' +  str(round(damagedealt/len(points),2)))
-            print('[*] Total Killing Sprees - ' + str(killingsprees))
-            print('[*] Total First Bloods - ' + str(firstblood))
-            print('')
+            # Text output in terminal
+            print('[+] Getting data for ' + points[match]['SummonerName'])
+            snowdowngames += len(points) 
+            # print('[*] Number of Games - ' + str(len(points)))
+            # print('[*] Total Kills - ' + str(killpoints))
+            # print('[*] Total Deaths - ' + str(deathpoints))
+            # print('[*] Total Assists - ' + str(assistpoints))
+            # print('[*] Average Kills - ' + str(round(killpoints/len(points),2)))
+            # print('[*] Average Deaths - ' + str(round(deathpoints/len(points),2)))
+            # print('[*] Average Assists - ' + str(round(assistpoints/len(points),2)))
+            # print('[*] Total KDA - ' + str(round(((killpoints + assistpoints) / deathpoints),2)))
+            # print('[*] Number of Double Kills - ' + str(doublekills))
+            # print('[*] Number of Triple Kills - ' + str(triplekills))
+            # print('[*] Number of Quadra Kills - ' + str(quadrakills))
+            # print('[*] Number of Penta Kills - ' + str(pentakills))
+            # print('[*] Number of First Bloods - ' + str(firstblood))
+            # print('Time Spent Alive - ' + str(lifetime))
+            # print('Average Life Span - ' + )
+            # print('Average Time Spent Alive - ' + str(round(lifetime/len(points),2)))
+            # print('[*] Total CC Score - ' + str(ccscore))
+            # print('[*] Average CC Score - ' + str(round(ccscore/len(points),2)))
+            # print('[*] Total Damage Dealt - ' + str(damagedealt))
+            # print('[*] Average Damage Dealt - ' +  str(round(damagedealt/len(points),2)))
+            # print('[*] Total Killing Sprees - ' + str(killingsprees))
+            # print('[*] Total First Bloods - ' + str(firstblood))
+            # print('')
         #    getmatchinfo(arams[0]['gameId'])
         else:
-            file = open('testoutput.csv', 'a+', newline = '')
+            file = open('weekend1.csv', 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
@@ -310,10 +336,21 @@ def main():
                                     'Total Damage Dealt' : 'N/A',
                                     'Average Damage Dealt' :  'N/A',
                                     'Total Killing Sprees' : 'N/A',
+                                    'Total Average KDA' : 'N/A',
+                                    'Wins' : 'N/A'
+                                    'Win Average' : 'N/A'
                                  })
             print('[!] ' + searchSummoner + ' hasn\'t played any ARAM games in this time period')
-            print('')
+            #print('')
     file.close()
+    print('[*] Total Snowdown Showdown Games Played - ' + str(snowdowngames))
+    for remaining in range(130, 0, -1):
+        sys.stdout.write('\r')
+        sys.stdout.write('Waiting {:2d} seconds to continue'.format(remaining))
+        sys.stdout.flush()
+        time.sleep(1)
+    apiwait += 1
+    sys.stdout.write('\r[*] API wait #' + str(apiwait) + ' has finished   \n')
     
 
 if __name__ == '__main__':
