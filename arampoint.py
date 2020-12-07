@@ -1,34 +1,13 @@
 #TODO
 """
 #Note for the future, to delete all previous git commits and start over - https://stackoverflow.com/questions/13716658/how-to-delete-all-commit-history-in-github
-
-- Add total games played for all players
-- Send output to CSV 
-- Add multi region support (Messi-JP)
-    - Used playerlist_jp.py to fix this, just run the script again and change playerlist entries to _jp
-
-
-
-=====================
-Achievements to Add
-=====================
-Overall
-----------
-+ Highest Average KDA
-+ Highest Average Deaths
-+ Highest Average Assists
-+ Most Penta Kills
-+ Most Wins
-Most kills in a single game
-Most CC points in a single game
-Most damage in a single game
     
-    Special Achievements
-    --------------------
-    + Achievement 1 - Win a game with >=10 deaths as Yasuo (highest deaths in a single game wins)
-    + Achievement 2 - Win the most games as Janna and count
-    + Achievement 3 - Lose the most games as Teemo and count
-    + Achievement 4 - Get the most pentakills as Samira
+Special Achievements
+--------------------
++ Achievement 1 - Win a game with >=10 deaths as Yasuo (highest deaths in a single game wins)
++ Achievement 2 - Win the most games as Janna and count
++ Achievement 3 - Lose the most games as Teemo and count
++ Achievement 4 - Get the most pentakills as Samira
 
 Weekend 2
 ---------
