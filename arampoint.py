@@ -29,8 +29,8 @@ from playerlist import lookuplist
 # Variables
 REGION = 'na1'
 #REGION = 'JP1'
-windowstart = datetime.datetime(2020, 12, 5, 0, 0)
-windowend = datetime.datetime(2020, 12, 6, 23, 59)
+windowstart = datetime.datetime(2020, 12, 12, 0, 0)
+windowend = datetime.datetime(2020, 12, 13, 23, 59)
 apirequest = 0
 
 # Classes
@@ -130,7 +130,7 @@ class Match:
                         points[matchid]['CC'] = str(players['stats']['totalTimeCrowdControlDealt'])
                         points[matchid]['FirstBlood'] = str(players['stats']['firstBloodKill'])
                         points[matchid]['Win'] = str(players['stats']['win'])
-                        if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Yasuo' and points[matchid]['Deaths'] >= 10:
+                        if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Yasuo' and int(points[matchid]['Deaths']) >= 10:
                             points[matchid]['Achievement1'] = points[matchid]['Deaths']
                         if points[matchid]['Win'] == 'True' and points[matchid]['Champ'] == 'Janna':
                             points[matchid]['Achievement2'] = 1
@@ -209,10 +209,20 @@ def main():
 
         writer.writeheader()
     file.close()
+    global apiwait
     apiwait = 0
     for searchSummoner in lookuplist:
         points = {}
         a_summoner = Summoner(searchSummoner)
+        if apirequest > 60:
+            for remaining in range(160, 0, -1):
+                sys.stdout.write('\r')
+                sys.stdout.write('Waiting {:2d} seconds to continue'.format(remaining))
+                sys.stdout.flush()
+                time.sleep(1)
+            apiwait += 1
+            sys.stdout.write('\r[*] API wait #' + str(apiwait) + ' has finished   \n')
+            apirequest = 0
         arams = Match(a_summoner).arams
         highkills = 0
         highdamage = 0
@@ -276,13 +286,13 @@ def main():
                     highdamage = points[match]['DamageDealt']
                 if int(points[match]['CC']) > int(highcc):
                     highcc = points[match]['CC']
-                if 'Achievement1' in points[match] and points[match]['Achievement1'] >= ach1:
+                if 'Achievement1' in points[match] and int(points[match]['Achievement1']) >= ach1:
                     ach1 = points[match]['Achievement1']
-                if 'Achievement2' in points[match] and points[match]['Achievement2'] > 0:
+                if 'Achievement2' in points[match] and int(points[match]['Achievement2']) > 0:
                     ach2 += 1
-                if 'Achievement3' in points[match] and points[match]['Achievement3'] > 0:
+                if 'Achievement3' in points[match] and int(points[match]['Achievement3']) > 0:
                     ach3 += 1
-                if 'Achievement4' in points[match] and points[match]['Achievement4'] > 0:
+                if 'Achievement4' in points[match] and int(points[match]['Achievement4']) > 0:
                     ach4 += 1
                 #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
                 #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
