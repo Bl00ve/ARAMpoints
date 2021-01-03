@@ -1,17 +1,13 @@
 #TODO
 """
-#Note for the future, to delete all previous git commits and start over - https://stackoverflow.com/questions/13716658/how-to-delete-all-commit-history-in-github
-    
+# Note for the future, to delete all previous git commits and start over - https://stackoverflow.com/questions/13716658/how-to-delete-all-commit-history-in-github
+    # Since I had to do this
 Special Achievements
 --------------------
 + Achievement 1 - Win a game with >=10 deaths as Yasuo (highest deaths in a single game wins)
 + Achievement 2 - Win the most games as Janna and count
 + Achievement 3 - Lose the most games as Teemo and count
 + Achievement 4 - Get the most pentakills as Samira
-
-Weekend 2
----------
-Played the same champion the most
 """
 
 import requests, time, pandas, json, datetime, pytz, urllib, config, csv, sys
@@ -19,19 +15,21 @@ from pandas.io.json import json_normalize
 from config import APIKEY
 
 # Multi Region Support
-import playerlist
-#import playerlist_jp
-from playerlist import lookuplist
-#from playerlist_jp import lookuplist
+# Just switch comments and run again, could probably write it so it does both everytime, but not worth IMO
+#import playerlist
+import playerlist_jp
+#from playerlist import lookuplist
+from playerlist_jp import lookuplist
 
 
 
 # Variables
 REGION = 'na1'
 #REGION = 'JP1'
-windowstart = datetime.datetime(2020, 12, 12, 0, 0)
-windowend = datetime.datetime(2020, 12, 13, 23, 59)
+windowstart = datetime.datetime(2020, 12, 26, 0, 0)
+windowend = datetime.datetime(2020, 12, 27, 23, 59)
 apirequest = 0
+o_file = 'PLACEHOLDER.csv'
 
 # Classes
 class Summoner:
@@ -172,7 +170,7 @@ def main():
     snowdowngames = 0
     print('[+] Data is taken from ' + str(windowstart.strftime('%Y-%m-%d %H:%m')) + ' to ' +str(windowend.strftime('%Y-%m-%d %H:%m')))
     # Start output file
-    file = open('PLACEHOLDER.csv', 'w', newline = '')
+    file = open(o_file, 'w', newline = '')
     with file:
         header = [
                     'Summoner',
@@ -296,7 +294,7 @@ def main():
                     ach4 += 1
                 #if datetime.datetime.strptime((points[match]['LongestLife']),'%H:%M:%S') > datetime.datetime.strptime('0:0:0','%H:%M:%S'):
                 #    lifetime += datetime.timedelta((points[match]['LongestLife']),'%H:%M:%S')
-            file = open('PLACEHOLDER.csv', 'a+', newline = '')
+            file = open(o_file, 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
@@ -335,7 +333,7 @@ def main():
             snowdowngames += len(points) 
 
         else:
-            file = open('PLACEHOLDER.csv', 'a+', newline = '')
+            file = open(o_file, 'a+', newline = '')
             with file:
                 writer = csv.DictWriter(file, fieldnames = header)
                 writer.writerow({
